@@ -1,10 +1,10 @@
-# 🤫 Quiet Corner Finder (PS20)
+# Quiet Corner Finder (PS20)
 
-> **Final Round Hackathon Solution** — Real-Time Campus Quiet Space Discovery using time-decayed crowd reports, confidence tiers, hour-of-day baselines, and self-measured accuracy. Zero sensors, zero user accounts, zero continuous location tracking.
+> **Final Round Hackathon Solution** - Real-Time Campus Quiet Space Discovery using time-decayed crowd reports, confidence tiers, hour-of-day baselines, and self-measured accuracy. Zero sensors, zero user accounts, zero continuous location tracking.
 
 ---
 
-## 📁 Clean & Professional Architecture
+## Clean & Professional Architecture
 
 The codebase is organized into modular frontend and backend packages:
 
@@ -49,7 +49,7 @@ quiet_place_finder/
 
 ---
 
-## ⚡ Quick Start (One Command)
+## Quick Start (One Command)
 
 ### On Windows
 ```powershell
@@ -63,7 +63,7 @@ The application will start on:
 
 ---
 
-## 🧪 Running Automated Tests
+## Running Automated Tests
 
 Run the full pytest suite (12 automated unit tests covering decay equations, confidence thresholds, rate limiting, and timezone handling):
 
@@ -73,14 +73,14 @@ python -m pytest
 
 ---
 
-## 🎯 5 Core Hackathon Differentiators
+## 5 Core Hackathon Differentiators
 
 1. **Time-Decayed Consensus (Not just last report)**:
    - Each report's weight $W = 0.5^{(\text{age\_minutes} / 40)}$.
    - Stale reports fade smoothly over ~3 hours without abrupt cutoff.
 2. **Confidence & Freshness Tiers**:
-   - $W \ge 2.0$: **Live — N reports** (High confidence, emerald pill)
-   - $0.5 \le W < 2.0$: **Recent — limited reports** (Medium confidence, amber pill)
+   - $W \ge 2.0$: **Live - N reports** (High confidence, emerald pill)
+   - $0.5 \le W < 2.0$: **Recent - limited reports** (Medium confidence, amber pill)
    - $W < 0.5$: **Usually [X] at this hour** (Baseline fallback, indigo pill)
 3. **Hour-of-Day Baseline Fallback**:
    - Never shows blank or stale data. When no recent reports exist, the system predicts noise based on past reports in the same Indian Standard Time (IST) hour-of-day bucket.
@@ -94,7 +94,7 @@ python -m pytest
 
 ---
 
-## 🎤 3-Minute Hackathon Demo Script
+## 3-Minute Hackathon Demo Script
 
 Follow this step-by-step walkthrough in front of the judges:
 
@@ -104,9 +104,9 @@ Follow this step-by-step walkthrough in front of the judges:
    - Point out the **Accuracy Badge** in the header (`~94%` self-measured agreement).
 
 2. **Search & Dynamic Filters (30s)**:
-   - Tap **🟢 Open Now**: Shows only spaces open at current campus time.
-   - Tap **🤫 Quiet Only**: Filters by current resolved live/baseline status.
-   - Tap **📚 Silent Study** or **🏢 Indoor**: Demonstrates the EAV attribute filtering (Constraint 1).
+   - Tap **Open Now**: Shows only spaces open at current campus time.
+   - Tap **Quiet Only**: Filters by current resolved live/baseline status.
+   - Tap **Silent Study** or **Indoor**: Demonstrates the EAV attribute filtering (Constraint 1).
 
 3. **Space Details & 24-Hour Baseline (45s)**:
    - Tap any card to open the **Space Detail View**.
@@ -114,12 +114,12 @@ Follow this step-by-step walkthrough in front of the judges:
    - Show the **Recent Reports (Decaying)** list with visible mathematical decay weights (e.g. weight $0.81$, $0.50$).
 
 4. **1-Tap Anonymous Report & Anti-Abuse (45s)**:
-   - Tap **Update ✍️** on an open space (e.g. Space 3).
+   - Tap **Update ** on an open space (e.g. Space 3).
    - Select **Moderate** + **Some Seats** and tap Submit.
    - Point out the instant update on the card and toast notification!
-   - Immediately tap **Update ✍️** again: Point out the **Anti-Abuse Rate Limit** alert ("Rate limit reached. Please wait before submitting another report for this space").
+   - Immediately tap **Update ** again: Point out the **Anti-Abuse Rate Limit** alert ("Rate limit reached. Please wait before submitting another report for this space").
 
 5. **Demo Toolbar & Decay Simulation (30s)**:
    - Click **Demo Tools ⚙️** at the top right.
    - Pick a space and choose **Simulated Age: 40m ago (1 Half-life, weight = 0.5)** or **190m ago (Expired)**.
-   - Click **⚡ Inject Report**: Show the judges how the score decays and confidence shifts automatically!
+   - Click **Inject Report**: Show the judges how the score decays and confidence shifts automatically!
