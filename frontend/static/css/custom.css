@@ -1,0 +1,13 @@
+/*
+  Quiet Corner Finder - Custom Frontend Styles
+  Supplement to Tailwind CSS for micro-animations and typography
+*/
+
+/* Custom scrollbar hiding */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

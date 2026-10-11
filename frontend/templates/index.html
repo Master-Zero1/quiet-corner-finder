@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Quiet Corner Finder - Campus Acoustic Map</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Syne:wght@700;800&amp;display=swap" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: '#111116',
+            'ink-muted': '#6E6A82',
+            'ink-light': '#9D99AF',
+            surface: '#FFFFFF',
+            'surface-subtle': '#F9F8FD',
+            'surface-card': '#FFFFFF',
+            'border-subtle': '#E9E6F2',
+            indigo: {
+              electric: '#4C32FF',
+              dark: '#3A20E6',
+              light: '#EBE8FF',
+              lavender: '#C9C1FF',
+              tint: '#F4F2FF',
+            },
+            status: {
+              quiet: '#15803D',
+              'quiet-bg': '#E8F7ED',
+              moderate: '#B45309',
+              'moderate-bg': '#FEF3C7',
+              loud: '#B91C1C',
+              'loud-bg': '#FEE2E2',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            display: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          borderRadius: { 'card': '28px' }
+        }
+      }
+    }
+  </script>
+<style>
+    * { box-sizing: border-box; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    body { color: #111116; background-color: #FFFFFF; overflow-x: hidden; font-family: 'Plus Jakarta Sans', sans-serif; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .hero-scene-container { cursor: none; }
+    .custom-cursor { pointer-events: none; transform: translate(-50%, -50%); transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), height 0.22s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease; }
+    a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid #4C32FF; outline-offset: 3px; }
+    @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    .animate-slide-in { animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .hover-lift { transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.2s ease; }
+    .hover-lift:hover { transform: translateY(-4px); box-shadow: 0 16px 36px -12px rgba(76, 50, 255, 0.1); border-color: #C9C1FF; }
+    @keyframes acousticPing { 0% { transform: scale(0.9); opacity: 0.85; } 50% { transform: scale(1.7); opacity: 0.22; } 100% { transform: scale(2.4); opacity: 0; } }
+    .acoustic-ripple { animation: acousticPing 3.2s cubic-bezier(0, 0.2, 0.8, 1) infinite; }
+    .acoustic-ripple-delayed { animation: acousticPing 3.2s cubic-bezier(0, 0.2, 0.8, 1) infinite; animation-delay: 1.6s; }
+    #mapViewport { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); transform-origin: center center; }
+    @keyframes subtleDrift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+    .ambient-drift { animation: subtleDrift 5s ease-in-out infinite; }
+  </style>
+</head>
+<body class="selection:bg-indigo-light selection:text-indigo-electric min-h-screen flex flex-col">
+
+<!-- ==================== TOP BAR ==================== -->
+<header class="fixed top-0 left-0 right-0 z-40 transition-all duration-300 py-6 px-4 sm:px-10 flex items-center justify-between bg-transparent" id="topNav">
+  <div class="flex items-center gap-4 sm:gap-8">
+    <a class="group flex items-center gap-2.5 text-ink font-bold tracking-tight text-xl" href="#hero">
+      <span class="w-3.5 h-3.5 rounded-full bg-indigo-electric inline-block group-hover:scale-125 transition-transform"></span>
+      <span class="tracking-tighter text-2xl font-black">quiet corner.</span>
+    </a>
+    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-surface-subtle border border-border-subtle text-ink-muted">demo data</span>
+  </div>
+  <nav class="hidden md:flex items-center gap-2 bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-border-subtle/80 shadow-sm">
+    <a class="px-5 py-2 text-sm font-semibold rounded-full text-indigo-electric bg-indigo-tint/60 transition-colors" href="#spaces">acoustic map</a>
+    <a class="px-5 py-2 text-sm font-semibold rounded-full text-ink-muted hover:text-indigo-electric transition-colors" href="#stats">stats</a>
+    <button class="px-5 py-2 text-sm font-semibold rounded-full bg-indigo-tint text-indigo-electric hover:bg-indigo-electric hover:text-white transition-all flex items-center gap-2" onclick="openMiniGame()">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+      pause break
+    </button>
+  </nav>
+  <div class="flex items-center gap-3">
+    <button class="h-11 px-4 sm:px-6 rounded-full bg-indigo-electric text-white font-semibold text-sm hover:bg-indigo-dark transition-all shadow-sm flex items-center gap-2 active:scale-95" onclick="openReportModalForFirst()">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"></path></svg>
+      <span class="hidden sm:inline">report current noise</span>
+      <span class="sm:hidden">report</span>
+    </button>
+  </div>
+</header>
+
+<!-- ==================== HERO SECTION ==================== -->
+<main class="flex-grow pt-28">
+<section class="max-w-[1440px] mx-auto px-4 sm:px-10 pt-12 pb-16" id="hero">
+  <div class="grid grid-cols-12 gap-8 items-center min-h-[560px]">
+    <div class="col-span-12 lg:col-span-6 flex flex-col justify-center pr-4">
+      <div class="inline-flex items-center gap-2 mb-6 text-xs font-bold tracking-[0.22em] uppercase text-indigo-electric">
+        <span class="w-2 h-2 rounded-full bg-indigo-electric animate-pulse"></span>campus, but calmer
+      </div>
+      <h1 class="font-extrabold tracking-[-0.045em] leading-[0.88] text-ink text-[64px] sm:text-[84px] md:text-[104px] xl:text-[118px]">
+        <span class="block">find</span>
+        <span class="block text-indigo-electric">your</span>
+        <span class="block">quiet.</span>
+      </h1>
+      <div class="mt-8 pt-8 border-t border-border-subtle max-w-md">
+        <p class="text-xs font-bold tracking-[0.18em] uppercase text-ink-muted mb-3">LIVE ACOUSTIC REPORTING ACROSS CAMPUS</p>
+        <p class="text-base text-ink-muted font-normal leading-relaxed">Real-time stillness reports from fellow students between lectures. No logins, no algorithms—just places to breathe, focus, and read.</p>
+      </div>
+    </div>
+    <div class="col-span-12 lg:col-span-6">
+      <div class="hero-scene-container relative w-full h-[400px] sm:h-[500px] rounded-[28px] bg-gradient-to-br from-[#F6F4FE] via-[#FAF9FD] to-[#FFFFFF] border border-border-subtle overflow-hidden select-none p-2 shadow-[0_20px_50px_-20px_rgba(76,50,255,0.08)]" id="heroSceneWrapper">
+        <svg class="w-full h-full absolute inset-0" fill="none" preserveAspectRatio="xMidYMid meet" viewBox="0 0 600 500" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="skyGrad" x1="0%" x2="100%" y1="0%" y2="100%"><stop offset="0%" stop-color="#EBE7FE" stop-opacity="0.8"/><stop offset="100%" stop-color="#F7F5FD" stop-opacity="0.3"/></linearGradient>
+            <linearGradient id="windowSunlight" x1="0%" x2="80%" y1="0%" y2="100%"><stop offset="0%" stop-color="#FFF9E6" stop-opacity="0.75"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.05"/></linearGradient>
+            <radialGradient cx="50%" cy="50%" id="lampGlow" r="50%"><stop offset="0%" stop-color="#FFEBB3" stop-opacity="0.65"/><stop offset="100%" stop-color="#FFEBB3" stop-opacity="0"/></radialGradient>
+          </defs>
+          <rect fill="#F5F3FC" height="500" width="600"/>
+          <polygon fill="#EBE6F7" points="0,380 600,380 600,500 0,500"/>
+          <line stroke="#E0D9F2" stroke-width="2" x1="0" x2="600" y1="380" y2="380"/>
+          <path d="M 330 60 C 330 20, 520 20, 520 60 L 520 290 L 330 290 Z" fill="url(#skyGrad)" stroke="#DDD6F2" stroke-width="2.5"/>
+          <path d="M 350 70 L 500 70 M 350 140 L 500 140 M 350 210 L 500 210 M 425 40 L 425 290" stroke="#E2DCF4" stroke-width="2"/>
+          <polygon fill="url(#windowSunlight)" opacity="0.6" points="330,60 520,60 580,420 240,420"/>
+          <path d="M 440 200 Q 420 150 450 110 Q 480 80 500 120" stroke="#B8D8C3" stroke-linecap="round" stroke-width="4"/>
+          <path d="M 450 110 Q 430 80 410 130" stroke="#BEDFC9" stroke-linecap="round" stroke-width="3"/>
+          <g opacity="0.95">
+            <rect fill="#EAE5F7" height="300" rx="4" stroke="#D7CEF0" stroke-width="2" width="130" x="40" y="80"/>
+            <line stroke="#CEC3EA" stroke-width="3" x1="40" x2="170" y1="130" y2="130"/><line stroke="#CEC3EA" stroke-width="3" x1="40" x2="170" y1="190" y2="190"/>
+            <line stroke="#CEC3EA" stroke-width="3" x1="40" x2="170" y1="250" y2="250"/><line stroke="#CEC3EA" stroke-width="3" x1="40" x2="170" y1="310" y2="310"/>
+            <rect fill="#4C32FF" height="42" rx="2" width="12" x="52" y="88"/><rect fill="#C9C1FF" height="38" rx="2" width="10" x="66" y="92"/>
+            <rect fill="#8174C4" height="40" rx="2" width="14" x="78" y="90"/><rect fill="#15803D" height="44" rx="2" width="11" x="94" y="86"/>
+            <rect fill="#D6CFEE" height="36" rx="2" width="16" x="107" y="94"/><rect fill="#4C32FF" height="41" rx="2" width="10" x="125" y="89"/>
+            <rect fill="#E1DCF4" height="46" rx="2" width="14" x="137" y="84"/>
+            <rect fill="#15803D" height="44" rx="2" width="14" x="50" y="146"/><rect fill="#8CD4A6" height="40" rx="2" width="11" x="66" y="150"/>
+            <rect fill="#4C32FF" height="48" rx="2" width="16" x="79" y="142"/><rect fill="#C9C1FF" height="42" rx="2" width="12" x="97" y="148"/>
+            <rect fill="#6B5EA6" height="46" rx="2" width="15" x="111" y="144"/><rect fill="#D1C9EF" height="39" rx="2" width="12" x="128" y="151"/>
+            <rect fill="#4C32FF" height="12" rx="2" width="46" x="56" y="238"/><rect fill="#B6ABDF" height="12" rx="2" width="42" x="58" y="226"/>
+            <rect fill="#15803D" height="12" rx="2" width="38" x="60" y="214"/>
+          </g>
+          <ellipse cx="105" cy="78" fill="#CFCAE3" rx="14" ry="4"/>
+          <path d="M 105 76 Q 80 50 65 65 M 105 76 Q 130 45 145 60 M 105 76 Q 105 40 100 35" stroke="#15803D" stroke-linecap="round" stroke-width="3"/>
+          <circle cx="280" cy="275" fill="url(#lampGlow)" r="85"/>
+          <rect fill="#FFFFFF" height="16" rx="4" stroke="#D3CCE6" stroke-width="2" width="220" x="210" y="340"/>
+          <line stroke="#CEC5E4" stroke-linecap="round" stroke-width="4" x1="230" x2="225" y1="356" y2="420"/>
+          <line stroke="#CEC5E4" stroke-linecap="round" stroke-width="4" x1="410" x2="415" y1="356" y2="420"/>
+          <path d="M 285 340 L 285 285 Q 285 270 270 270" fill="none" stroke="#4C32FF" stroke-linecap="round" stroke-width="3"/>
+          <path d="M 270 270 L 255 280 L 270 286 Z" fill="#4C32FF"/>
+          <polygon fill="#FFFFFF" points="310,336 340,332 370,336 365,342 340,339 315,342" stroke="#4C32FF" stroke-width="1.5"/>
+          <rect fill="#EAE5F9" height="14" rx="2" stroke="#998DC7" stroke-width="1.5" width="10" x="382" y="326"/>
+          <path d="M 392 329 C 396 329 396 335 392 335" fill="none" stroke="#998DC7" stroke-width="1.5"/>
+          <path class="ambient-drift" d="M 385 320 Q 388 314 385 308" fill="none" opacity="0.6" stroke="#C9C1FF" stroke-width="1.5"/>
+          <ellipse cx="320" cy="260" fill="#252433" rx="16" ry="18"/>
+          <path d="M 304 258 C 304 242 336 242 336 258" fill="none" stroke="#4C32FF" stroke-linecap="round" stroke-width="3.5"/>
+          <rect fill="#4C32FF" height="10" rx="3" width="6" x="301" y="254"/><rect fill="#4C32FF" height="10" rx="3" width="6" x="333" y="254"/>
+          <path d="M 298 285 Q 320 280 342 285 L 348 340 L 292 340 Z" fill="#4C32FF" opacity="0.9"/>
+          <rect fill="#E1DCF2" height="75" rx="12" stroke="#CEC6E8" stroke-width="2" width="55" x="292" y="275"/>
+          <path class="ambient-drift" d="M 260 210 Q 280 200 300 210 T 340 210" fill="none" opacity="0.75" stroke="#15803D" stroke-linecap="round" stroke-width="2"/>
+          <path class="ambient-drift" d="M 275 190 Q 295 180 315 190 T 355 190" fill="none" opacity="0.4" stroke="#15803D" stroke-linecap="round" stroke-width="1.8" style="animation-delay: 1.2s;"/>
+        </svg>
+        <div class="absolute bottom-6 left-6 right-6 flex items-center justify-between p-4 rounded-2xl bg-white/95 border border-border-subtle/80 shadow-md backdrop-blur-sm pointer-events-auto" id="heroFloatingCard">
+          <div class="flex items-center gap-3">
+            <span class="w-2.5 h-2.5 rounded-full bg-status-quiet animate-ping"></span>
+            <div>
+              <p class="text-xs font-bold uppercase tracking-wider text-ink" id="heroSpaceName">Loading...</p>
+              <p class="text-xs text-ink-muted" id="heroSpaceStatus">Checking campus silence...</p>
+            </div>
+          </div>
+          <button class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-electric text-white hover:bg-indigo-dark transition-all" onclick="openDetailForFirst()">inspect space</button>
+        </div>
+        <div class="custom-cursor opacity-0 absolute w-10 h-10 rounded-full border-2 border-indigo-electric bg-indigo-electric/15 flex items-center justify-center text-[10px] font-bold text-indigo-electric uppercase tracking-tighter" id="sceneCursor">
+          <span class="opacity-0 transition-opacity duration-200" id="cursorLabel">listen</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== ACTIVITY & FILTER BAR ==================== -->
+<section class="max-w-[1440px] mx-auto px-4 sm:px-10 py-6 border-y border-border-subtle bg-white">
+  <div class="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6">
+    <div aria-label="Suitable activities" class="flex items-center flex-wrap gap-2.5" role="tablist">
+      <span class="text-xs font-bold uppercase tracking-[0.15em] text-ink-muted mr-2">I need to:</span>
+      <button class="activity-btn h-10 sm:h-12 px-4 sm:px-6 rounded-full font-bold text-sm transition-all duration-200 bg-indigo-electric text-white shadow-sm border border-transparent" onclick="setActivityFilter('all', this)">all spaces</button>
+      <button class="activity-btn h-10 sm:h-12 px-4 sm:px-6 rounded-full font-bold text-sm transition-all duration-200 bg-surface-subtle text-ink hover:bg-indigo-tint hover:text-indigo-electric border border-border-subtle" onclick="setActivityFilter('study', this)">silent study</button>
+      <button class="activity-btn h-10 sm:h-12 px-4 sm:px-6 rounded-full font-bold text-sm transition-all duration-200 bg-surface-subtle text-ink hover:bg-indigo-tint hover:text-indigo-electric border border-border-subtle" onclick="setActivityFilter('reading', this)">deep reading</button>
+      <button class="activity-btn h-10 sm:h-12 px-4 sm:px-6 rounded-full font-bold text-sm transition-all duration-200 bg-surface-subtle text-ink hover:bg-indigo-tint hover:text-indigo-electric border border-border-subtle" onclick="setActivityFilter('rest', this)">resting</button>
+    </div>
+    <div class="flex items-center flex-wrap gap-3 w-full xl:w-auto">
+      <div class="relative flex-grow sm:flex-grow-0 sm:w-64">
+        <input class="w-full h-12 pl-11 pr-4 rounded-full bg-surface-subtle border border-border-subtle text-sm font-medium text-ink placeholder:text-ink-light focus:bg-white focus:border-indigo-electric focus:outline-none transition-all" id="searchInput" oninput="handleSearch(this.value)" placeholder="Search building, floor..." type="text"/>
+        <svg class="w-4 h-4 absolute left-4 top-4 text-ink-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </div>
+      <button class="filter-pill h-10 sm:h-12 px-4 sm:px-5 rounded-full text-xs font-bold uppercase tracking-wider border border-border-subtle bg-surface-subtle text-ink hover:border-indigo-lavender transition-all flex items-center gap-2" id="filterQuietOnly" onclick="toggleSecondaryFilter('quiet')">
+        <span class="w-2 h-2 rounded-full bg-status-quiet"></span>quiet only
+      </button>
+      <button class="filter-pill h-10 sm:h-12 px-4 sm:px-5 rounded-full text-xs font-bold uppercase tracking-wider border border-border-subtle bg-surface-subtle text-ink hover:border-indigo-lavender transition-all flex items-center gap-2" id="filterOpenNow" onclick="toggleSecondaryFilter('open')">open now</button>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SPACES SECTION ==================== -->
+<section class="max-w-[1440px] mx-auto px-4 sm:px-10 py-16" id="spaces">
+  <div class="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 mb-8">
+    <div>
+      <div class="text-xs font-bold tracking-[0.2em] uppercase text-indigo-electric mb-2">EXPLORE CURRENT SANCTUARIES</div>
+      <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-ink flex items-center flex-wrap gap-3">
+        Campus Spaces <span class="text-base font-bold text-ink-muted" id="spaceCountBadge">(loading...)</span>
+      </h2>
+    </div>
+  </div>
+
+  <!-- Dynamically rendered cards grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="spacesGrid">
+    <!-- Skeleton placeholders -->
+    <div class="animate-pulse bg-surface-subtle rounded-[28px] border border-border-subtle p-7 h-[320px]"><div class="h-4 bg-border-subtle rounded w-1/3 mb-4"></div><div class="h-6 bg-border-subtle rounded w-2/3 mb-6"></div><div class="space-y-3"><div class="h-3 bg-border-subtle rounded"></div><div class="h-3 bg-border-subtle rounded w-5/6"></div></div></div>
+    <div class="animate-pulse bg-surface-subtle rounded-[28px] border border-border-subtle p-7 h-[320px]"><div class="h-4 bg-border-subtle rounded w-1/3 mb-4"></div><div class="h-6 bg-border-subtle rounded w-2/3 mb-6"></div><div class="space-y-3"><div class="h-3 bg-border-subtle rounded"></div><div class="h-3 bg-border-subtle rounded w-5/6"></div></div></div>
+    <div class="animate-pulse bg-surface-subtle rounded-[28px] border border-border-subtle p-7 h-[320px]"><div class="h-4 bg-border-subtle rounded w-1/3 mb-4"></div><div class="h-6 bg-border-subtle rounded w-2/3 mb-6"></div><div class="space-y-3"><div class="h-3 bg-border-subtle rounded"></div><div class="h-3 bg-border-subtle rounded w-5/6"></div></div></div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="hidden py-16 text-center bg-surface-subtle rounded-[28px] border border-dashed border-border-subtle mt-6" id="emptyResultsState">
+    <div class="w-14 h-14 rounded-full bg-indigo-tint text-indigo-electric mx-auto flex items-center justify-center mb-4">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    </div>
+    <h4 class="text-xl font-bold text-ink mb-1">No quiet corners match this filter</h4>
+    <p class="text-sm text-ink-muted max-w-sm mx-auto mb-6">Try resetting search keywords or turning off the "quiet only" toggle.</p>
+    <button class="h-11 px-6 rounded-full font-bold text-xs uppercase tracking-wider bg-indigo-electric text-white hover:bg-indigo-dark transition-all" onclick="resetAllFilters()">Reset all filters</button>
+  </div>
+</section>
+
+<!-- ==================== STATS SECTION ==================== -->
+<section class="max-w-[1440px] mx-auto px-4 sm:px-10 py-16 border-t border-border-subtle" id="stats">
+  <div class="mb-10">
+    <span class="text-xs font-bold tracking-[0.2em] uppercase text-indigo-electric">COMMUNITY PULSE</span>
+    <h2 class="text-3xl font-extrabold tracking-tight text-ink mt-1">Trust in Every Decibel</h2>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div class="bg-surface-subtle rounded-[28px] border border-border-subtle p-10 hover:border-indigo-lavender transition-all">
+      <div class="text-[72px] sm:text-[88px] font-black tracking-tighter leading-none text-ink mb-4" id="statAccuracy">--<span class="text-indigo-electric font-bold">%</span></div>
+      <h3 class="text-xl font-bold text-ink mb-2">App accuracy verified</h3>
+      <p class="text-sm text-ink-muted font-normal leading-relaxed max-w-md">Self-measured agreement (±1 level) between what the app showed and the next student report.</p>
+    </div>
+    <div class="bg-surface-subtle rounded-[28px] border border-border-subtle p-10 hover:border-indigo-lavender transition-all">
+      <div class="text-[72px] sm:text-[88px] font-black tracking-tighter leading-none text-ink mb-4" id="statCoverage">--<span class="text-indigo-electric font-bold">%</span></div>
+      <h3 class="text-xl font-bold text-ink mb-2">Spaces with fresh answers</h3>
+      <p class="text-sm text-ink-muted font-normal leading-relaxed max-w-md">Coverage of campus spaces backed by live reports or hour-of-day baseline prediction.</p>
+    </div>
+  </div>
+  <!-- Mini-Game Teaser -->
+  <div class="mt-8 bg-indigo-tint rounded-[28px] border border-indigo-lavender/60 p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+    <div class="flex items-center gap-5">
+      <div class="w-14 h-14 rounded-2xl bg-indigo-electric text-white flex items-center justify-center shrink-0 shadow-sm">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-xs font-bold uppercase tracking-wider text-indigo-electric">30-Second Micro Game</span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-white text-ink border border-border-subtle">No login</span>
+        </div>
+        <h4 class="text-xl font-extrabold text-ink">Test your campus sense: "Quiet or Loud?"</h4>
+        <p class="text-sm text-ink-muted">Guess whether campus spaces are calm or chaotic at given hours.</p>
+      </div>
+    </div>
+    <button class="shrink-0 h-12 px-8 rounded-full bg-indigo-electric text-white font-bold text-sm hover:bg-indigo-dark transition-all shadow-sm" onclick="openMiniGame()">Play 30s Game</button>
+  </div>
+</section>
+</main>
+
+<!-- ==================== FOOTER ==================== -->
+<footer class="border-t border-border-subtle py-10 px-4 sm:px-10 max-w-[1440px] mx-auto w-full flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-ink-muted">
+  <div class="flex items-center gap-3">
+    <span class="w-2.5 h-2.5 rounded-full bg-indigo-electric"></span>
+    <span class="font-bold text-ink text-sm">Quiet Corner Finder</span>
+    <span>• PS20 Hackathon Prototype</span>
+  </div>
+  <div class="flex items-center gap-6 font-semibold">
+    <span>Time-Decayed Reports</span>
+    <span>Hour Baselines</span>
+    <span>Self-Measured Accuracy</span>
+  </div>
+</footer>
+
+<!-- ==================== SLIDE-OUT DETAIL PANEL ==================== -->
+<div class="fixed inset-0 bg-ink/30 backdrop-blur-[2px] z-50 opacity-0 pointer-events-none transition-opacity duration-300" id="detailPanelOverlay" onclick="closeDetailPanel()"></div>
+<aside class="fixed top-0 right-0 bottom-0 w-full max-w-[540px] bg-white z-50 shadow-2xl border-l border-border-subtle p-6 sm:p-10 flex flex-col justify-between translate-x-full transition-transform duration-300 ease-out overflow-y-auto" id="detailPanel" role="dialog" aria-modal="true">
+  <div>
+    <div class="flex items-center justify-between pb-6 border-b border-border-subtle mb-8">
+      <span class="text-xs font-bold tracking-[0.2em] uppercase text-indigo-electric">SPACE INSPECTOR</span>
+      <button class="w-10 h-10 rounded-full border border-border-subtle flex items-center justify-center text-ink hover:bg-surface-subtle transition-all" onclick="closeDetailPanel()" aria-label="Close">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="mb-4">
+      <div class="text-5xl sm:text-6xl font-black tracking-tight uppercase flex items-center gap-4" id="panelStatusWord">SILENT</div>
+      <p class="text-xs font-bold uppercase tracking-wider text-ink-muted mt-2" id="panelFreshnessText">Loading...</p>
+    </div>
+    <h2 class="text-3xl font-extrabold tracking-tight text-ink mb-1 mt-6" id="panelSpaceName">Space Name</h2>
+    <p class="text-sm font-semibold text-ink-muted mb-8" id="panelBuildingName">Building</p>
+    <div class="space-y-4 pt-6 border-t border-border-subtle" id="panelAttributesList"></div>
+    <!-- Hourly pattern mini-chart -->
+    <div class="mt-8 pt-6 border-t border-border-subtle">
+      <h3 class="text-xs font-bold uppercase tracking-wider text-ink-muted mb-3">Hour-of-Day Pattern (IST)</h3>
+      <div class="flex items-end gap-[3px] h-[60px]" id="panelHourlyChart"></div>
+    </div>
+    <!-- Recent Reports -->
+    <div class="mt-6 pt-6 border-t border-border-subtle">
+      <h3 class="text-xs font-bold uppercase tracking-wider text-ink-muted mb-3">Recent Reports (Decaying)</h3>
+      <div class="space-y-2" id="panelRecentReports"></div>
+    </div>
+  </div>
+  <div class="pt-8 border-t border-border-subtle">
+    <button class="w-full h-14 rounded-full bg-indigo-electric text-white font-extrabold text-base tracking-wide hover:bg-indigo-dark transition-all shadow-md flex items-center justify-center gap-3" id="panelReportBtn" onclick="openReportModalFromPanel()">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+      how is it right now?
+    </button>
+    <p class="text-center text-xs text-ink-muted mt-3">One click updates the campus feed for everyone.</p>
+  </div>
+</aside>
+
+<!-- ==================== REPORT MODAL ==================== -->
+<div class="fixed inset-0 bg-ink/40 backdrop-blur-[2px] z-50 opacity-0 pointer-events-none transition-opacity duration-300 flex items-center justify-center p-4 sm:p-6" id="reportModalOverlay" onclick="closeReportModal()">
+  <div class="bg-white rounded-[28px] border border-border-subtle w-full max-w-[560px] p-6 sm:p-8 shadow-2xl relative" onclick="event.stopPropagation()" role="dialog" aria-modal="true">
+    <button class="absolute top-6 right-6 w-9 h-9 rounded-full border border-border-subtle flex items-center justify-center text-ink hover:bg-surface-subtle transition-all" onclick="closeReportModal()" aria-label="Close">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+    <div class="mb-6">
+      <span class="text-xs font-bold tracking-[0.2em] uppercase text-indigo-electric">3-SECOND REPORT</span>
+      <h3 class="text-2xl font-black text-ink mt-1">How quiet is <span class="text-indigo-electric" id="reportModalSpaceName">this space</span>?</h3>
+      <p class="text-xs text-ink-muted mt-1">No typing or account required. Select acoustic level and crowd.</p>
+    </div>
+    <div id="reportFormBody">
+      <label class="block text-xs font-bold uppercase tracking-wider text-ink mb-2.5">1. Current Acoustic Level</label>
+      <div class="grid grid-cols-3 gap-3 mb-6">
+        <button class="report-noise-btn p-4 sm:p-5 rounded-2xl border-2 border-emerald-300 bg-emerald-50/50 hover:bg-emerald-100/60 flex flex-col items-center justify-center gap-2 transition-all ring-2" onclick="selectReportNoise(1, this)" type="button" data-val="1">
+          <span class="w-3.5 h-3.5 rounded-full bg-status-quiet"></span><span class="font-extrabold text-sm text-status-quiet tracking-tight">QUIET</span><span class="text-[10px] text-ink-muted">pin-drop calm</span>
+        </button>
+        <button class="report-noise-btn p-4 sm:p-5 rounded-2xl border-2 border-border-subtle bg-surface-subtle hover:bg-amber-50 hover:border-amber-300 flex flex-col items-center justify-center gap-2 transition-all" onclick="selectReportNoise(2, this)" type="button" data-val="2">
+          <span class="w-3.5 h-3.5 rounded-full bg-status-moderate"></span><span class="font-extrabold text-sm text-ink tracking-tight">MODERATE</span><span class="text-[10px] text-ink-muted">whispers / hum</span>
+        </button>
+        <button class="report-noise-btn p-4 sm:p-5 rounded-2xl border-2 border-border-subtle bg-surface-subtle hover:bg-red-50 hover:border-red-300 flex flex-col items-center justify-center gap-2 transition-all" onclick="selectReportNoise(3, this)" type="button" data-val="3">
+          <span class="w-3.5 h-3.5 rounded-full bg-status-loud"></span><span class="font-extrabold text-sm text-ink tracking-tight">LOUD</span><span class="text-[10px] text-ink-muted">talking / busy</span>
+        </button>
+      </div>
+      <label class="block text-xs font-bold uppercase tracking-wider text-ink mb-2.5">2. Crowd &amp; Seating Availability</label>
+      <div class="grid grid-cols-3 gap-3 mb-8">
+        <button class="report-crowd-btn py-3 px-2 rounded-xl border border-indigo-electric bg-indigo-tint text-indigo-electric font-bold text-xs transition-all" onclick="selectReportCrowd(1, this)" type="button" data-val="1">empty (seats galore)</button>
+        <button class="report-crowd-btn py-3 px-2 rounded-xl border border-border-subtle bg-surface-subtle text-ink font-bold text-xs hover:border-indigo-lavender transition-all" onclick="selectReportCrowd(2, this)" type="button" data-val="2">some people</button>
+        <button class="report-crowd-btn py-3 px-2 rounded-xl border border-border-subtle bg-surface-subtle text-ink font-bold text-xs hover:border-indigo-lavender transition-all" onclick="selectReportCrowd(3, this)" type="button" data-val="3">packed / full</button>
+      </div>
+      <div class="hidden p-3 rounded-xl text-sm font-bold mb-4 bg-amber-50 text-amber-800 border border-amber-200" id="reportRateLimitMsg"></div>
+      <button class="w-full h-14 rounded-full bg-indigo-electric text-white font-extrabold text-sm uppercase tracking-wider hover:bg-indigo-dark transition-all shadow-md active:scale-98" id="submitReportBtn" onclick="submitReport()">submit report now</button>
+    </div>
+    <div class="hidden py-8 text-center" id="reportSuccessBody">
+      <div class="w-16 h-16 rounded-full bg-emerald-100 text-status-quiet mx-auto flex items-center justify-center mb-4">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <h4 class="text-2xl font-black text-ink mb-1">Report recorded!</h4>
+      <p class="text-sm text-ink-muted max-w-xs mx-auto mb-2" id="reportSuccessMsg">Your report fades smoothly over ~40 min.</p>
+      <p class="text-xs text-ink-muted max-w-xs mx-auto mb-6">Thank you. You just saved someone a 10-minute walk across campus.</p>
+      <button class="h-11 px-8 rounded-full bg-ink text-white font-bold text-xs uppercase tracking-wider hover:bg-indigo-electric transition-all" onclick="closeReportModal()">done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MINI GAME MODAL ==================== -->
+<div class="fixed inset-0 bg-ink/40 backdrop-blur-[2px] z-50 opacity-0 pointer-events-none transition-opacity duration-300 flex items-center justify-center p-4 sm:p-6" id="miniGameOverlay" onclick="closeMiniGame()">
+  <div class="bg-white rounded-[28px] border border-border-subtle w-full max-w-[560px] p-6 sm:p-8 shadow-2xl relative" onclick="event.stopPropagation()" role="dialog" aria-modal="true">
+    <button class="absolute top-6 right-6 w-9 h-9 rounded-full border border-border-subtle flex items-center justify-center text-ink hover:bg-surface-subtle transition-all" onclick="closeMiniGame()" aria-label="Close game">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+    <div class="flex items-center justify-between pb-4 border-b border-border-subtle mb-6">
+      <div>
+        <span class="text-xs font-bold tracking-[0.2em] uppercase text-indigo-electric">CAMPUS GUESSING</span>
+        <h3 class="text-xl font-black text-ink">Quiet or Loud?</h3>
+      </div>
+      <div class="flex items-center gap-4 text-right">
+        <div><div class="text-[10px] font-bold uppercase text-ink-muted tracking-wider">streak</div><div class="text-xl font-black text-indigo-electric" id="gameStreakCount">0</div></div>
+        <div class="pl-4 border-l border-border-subtle"><div class="text-[10px] font-bold uppercase text-ink-muted tracking-wider">best</div><div class="text-xl font-black text-ink" id="gameBestScore">0</div></div>
+      </div>
+    </div>
+    <div class="bg-surface-subtle rounded-2xl border border-border-subtle p-6 text-center mb-6" id="gameQuestionContainer">
+      <span class="inline-block text-[11px] font-bold tracking-widest uppercase px-3 py-1 rounded-full bg-indigo-tint text-indigo-electric mb-3" id="gameQuestionTime">Tuesday • 2:15 PM</span>
+      <h4 class="text-2xl font-black text-ink mb-1" id="gameQuestionSpace">Loading...</h4>
+      <p class="text-xs text-ink-muted" id="gameQuestionBuilding">Campus Space</p>
+    </div>
+    <div class="grid grid-cols-2 gap-4 mb-4" id="gameChoiceButtons">
+      <button class="h-16 rounded-2xl border-2 border-emerald-300 bg-emerald-50 text-status-quiet hover:bg-emerald-100 font-extrabold text-base uppercase tracking-wider flex items-center justify-center gap-2 transition-all" onclick="guessGame('quiet')"><span class="w-3 h-3 rounded-full bg-status-quiet"></span>QUIET</button>
+      <button class="h-16 rounded-2xl border-2 border-red-300 bg-red-50 text-status-loud hover:bg-red-100 font-extrabold text-base uppercase tracking-wider flex items-center justify-center gap-2 transition-all" onclick="guessGame('loud')"><span class="w-3 h-3 rounded-full bg-status-loud"></span>LOUD</button>
+    </div>
+    <div class="hidden p-4 rounded-xl text-center text-sm font-bold mb-4" id="gameFeedbackBanner"></div>
+    <div class="text-center pt-2"><p class="text-[11px] text-ink-muted">30-second pause break. Best score persists locally.</p></div>
+  </div>
+</div>
+
+<!-- ==================== DEMO CONTROL FLOATING BUTTON ==================== -->
+<div class="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
+  <div class="hidden bg-white rounded-2xl border border-indigo-lavender shadow-xl p-5 w-[300px]" id="demoDrawer">
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-xs font-bold uppercase tracking-wider text-indigo-electric">Demo Controls</span>
+      <button class="text-ink-muted hover:text-ink" onclick="document.getElementById('demoDrawer').classList.add('hidden')">✕</button>
+    </div>
+    <div class="space-y-3 text-sm">
+      <div>
+        <label class="text-xs font-bold text-ink-muted">Space:</label>
+        <select id="demoSpaceSelect" class="w-full mt-1 h-9 px-3 rounded-lg bg-surface-subtle border border-border-subtle text-xs"></select>
+      </div>
+      <div>
+        <label class="text-xs font-bold text-ink-muted">Simulated Age:</label>
+        <select id="demoDecayAge" class="w-full mt-1 h-9 px-3 rounded-lg bg-surface-subtle border border-border-subtle text-xs">
+          <option value="0">Just now (weight=1.0)</option>
+          <option value="40">40m ago (weight=0.5)</option>
+          <option value="80">80m ago (weight=0.25)</option>
+          <option value="190">Expired (>180m)</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-bold text-ink-muted">Noise:</label>
+        <select id="demoSimNoise" class="w-full mt-1 h-9 px-3 rounded-lg bg-surface-subtle border border-border-subtle text-xs">
+          <option value="1">Quiet (1)</option><option value="2">Moderate (2)</option><option value="3">Loud (3)</option>
+        </select>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button class="flex-1 h-9 rounded-lg bg-indigo-electric text-white text-xs font-bold" onclick="fireSimReport()">⚡ Inject</button>
+        <button class="flex-1 h-9 rounded-lg bg-red-500 text-white text-xs font-bold" onclick="resetDemoDB()">↺ Reset</button>
+      </div>
+    </div>
+  </div>
+  <button class="h-12 px-5 rounded-full bg-indigo-electric text-white font-bold text-sm shadow-lg hover:bg-indigo-dark transition-all flex items-center gap-2" onclick="document.getElementById('demoDrawer').classList.toggle('hidden')">
+    ⚙️ Demo Tools
+  </button>
+</div>
+
+<!-- ==================== JAVASCRIPT — API-INTEGRATED ==================== -->
+<script>
+// =========================================================================
+// Device Token (Anonymous, localStorage)
+// =========================================================================
+function getDeviceToken() {
+  let t = localStorage.getItem('qcf_device_token');
+  if (!t) {
+    t = 'dev_' + 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+    localStorage.setItem('qcf_device_token', t);
+  }
+  return t;
+}
+
+// =========================================================================
+// Global State
+// =========================================================================
+let allSpaces = [];
+let currentActivity = 'all';
+let filterQuietActive = false;
+let filterOpenActive = false;
+let searchKeyword = '';
+let currentReportSpaceId = null;
+let currentDetailSpaceId = null;
+let selectedNoise = 1;
+let selectedCrowd = 1;
+
+// =========================================================================
+// Noise/Crowd Helpers
+// =========================================================================
+const NOISE_MAP = { 1: { label: 'QUIET', color: '#15803D', bg: '#E8F7ED', borderClass: 'border-emerald-200', textClass: 'text-status-quiet', bgClass: 'bg-status-quiet-bg' },
+                    2: { label: 'MODERATE', color: '#B45309', bg: '#FEF3C7', borderClass: 'border-amber-200', textClass: 'text-status-moderate', bgClass: 'bg-status-moderate-bg' },
+                    3: { label: 'LOUD', color: '#B91C1C', bg: '#FEE2E2', borderClass: 'border-red-200', textClass: 'text-status-loud', bgClass: 'bg-status-loud-bg' } };
+const CROWD_MAP = { 1: 'Empty', 2: 'Some seats', 3: 'Crowded' };
+
+function noiseIcon(n) {
+  if (n === 1) return `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" x2="17" y1="9" y2="15"/><line x1="17" x2="23" y1="9" y2="15"/></svg>`;
+  if (n === 2) return `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
+  return `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
+}
+
+function confidenceBadge(s) {
+  if (s.status.confidence === 'high') return `<span class="text-[11px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-md bg-indigo-tint text-indigo-electric">Live — ${s.status.report_count || ''} reports</span>`;
+  if (s.status.confidence === 'medium') return `<span class="text-[11px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-md bg-indigo-tint text-indigo-electric">Recent</span>`;
+  return `<span class="text-[11px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-md bg-surface-subtle text-ink-muted border border-border-subtle">${s.status.confidence_label}</span>`;
+}
+
+// =========================================================================
+// Fetch & Render Spaces
+// =========================================================================
+async function loadSpaces() {
+  const params = new URLSearchParams();
+  if (searchKeyword) params.set('q', searchKeyword);
+  if (filterOpenActive) params.set('open_now', '1');
+  if (filterQuietActive) params.set('max_noise', '1');
+  if (currentActivity !== 'all') params.set('activity', currentActivity);
+
+  try {
+    const res = await fetch(`/api/spaces?${params.toString()}`);
+    const data = await res.json();
+    allSpaces = data.spaces || [];
+    renderSpaces(allSpaces);
+    updateHeroCard();
+    populateDemoDropdown();
+
+    // Stats
+    if (data.meta) {
+      const accEl = document.getElementById('statAccuracy');
+      const covEl = document.getElementById('statCoverage');
+      if (data.meta.accuracy_pct != null) accEl.innerHTML = `${Math.round(data.meta.accuracy_pct)}<span class="text-indigo-electric font-bold">%</span>`;
+      if (data.meta.coverage_pct != null) covEl.innerHTML = `${Math.round(data.meta.coverage_pct)}<span class="text-indigo-electric font-bold">%</span>`;
+    }
+  } catch (e) {
+    console.error('Failed to load spaces:', e);
+  }
+}
+
+function renderSpaces(spaces) {
+  const grid = document.getElementById('spacesGrid');
+  const empty = document.getElementById('emptyResultsState');
+  const badge = document.getElementById('spaceCountBadge');
+  badge.textContent = `(${spaces.length} mapped zones)`;
+
+  if (spaces.length === 0) { grid.innerHTML = ''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+
+  grid.innerHTML = spaces.map(s => {
+    const nm = NOISE_MAP[s.status.noise] || NOISE_MAP[1];
+    const freshText = s.status.source === 'live'
+      ? `${s.status.freshest_report_age_min}m ago (${s.status.report_count || 1} report${(s.status.report_count||1) !== 1 ? 's' : ''})`
+      : s.status.confidence_label;
+    const openBadge = s.is_open
+      ? `<span class="text-[10px] font-bold text-emerald-600">● Open · ${s.next_change}</span>`
+      : `<span class="text-[10px] font-bold text-ink-muted">Closed · ${s.next_change}</span>`;
+
+    const attrPreviews = Object.entries(s.attributes || {}).slice(0, 2).map(([k,v]) =>
+      `<span class="text-[11px] px-2 py-0.5 rounded bg-surface-subtle border border-border-subtle text-ink-muted">${v.length > 30 ? v.substring(0,28)+'…' : v}</span>`
+    ).join('');
+
+    return `
+    <article class="space-card bg-white rounded-[28px] border border-border-subtle p-6 sm:p-7 hover-lift flex flex-col justify-between cursor-pointer" onclick="openDetailPanel(${s.id})"
+      data-id="${s.id}" data-noise="${s.status.noise}" data-open="${s.is_open}" data-activities="${(s.attributes?.activities||'').toLowerCase()}">
+      <div>
+        <div class="flex items-center justify-between mb-4">
+          <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ${nm.bgClass} ${nm.textClass} ${nm.borderClass} border">
+            <span class="w-2 h-2 rounded-full" style="background:${nm.color}"></span>
+            ${noiseIcon(s.status.noise)} ${nm.label}
+          </span>
+          ${confidenceBadge(s)}
+        </div>
+        <h3 class="text-xl sm:text-2xl font-extrabold tracking-tight text-ink mb-1">${s.name}</h3>
+        <p class="text-sm font-medium text-ink-muted mb-1">${s.building}</p>
+        <div class="mb-4">${openBadge}</div>
+        <div class="pt-4 border-t border-border-subtle space-y-2">
+          <div class="flex items-center justify-between text-xs text-ink-muted">
+            <span class="font-medium">Freshness</span>
+            <span class="font-bold text-ink">${freshText}</span>
+          </div>
+          <div class="flex items-center justify-between text-xs text-ink-muted">
+            <span class="font-medium">Crowd</span>
+            <span class="font-semibold text-ink">${s.status.crowd_label}</span>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-1.5 mt-3">${attrPreviews}</div>
+      </div>
+      <div class="mt-6 pt-4 border-t border-border-subtle flex items-center justify-between gap-3" onclick="event.stopPropagation()">
+        <button class="w-full h-11 rounded-full font-bold text-xs uppercase tracking-wider bg-surface-subtle border border-border-subtle text-ink hover:bg-indigo-electric hover:text-white hover:border-indigo-electric transition-all" onclick="openDetailPanel(${s.id})">Quick View</button>
+        <button class="w-11 h-11 shrink-0 rounded-full border border-border-subtle bg-white text-ink-muted hover:text-indigo-electric hover:border-indigo-electric flex items-center justify-center transition-all ${!s.is_open ? 'opacity-30 pointer-events-none' : ''}" onclick="openReportModal(${s.id}, '${s.name.replace(/'/g, "\\'")}')" title="Quick report">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+        </button>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+function updateHeroCard() {
+  if (allSpaces.length === 0) return;
+  const quietOnes = allSpaces.filter(s => s.status.noise === 1 && s.is_open);
+  const hero = quietOnes.length > 0 ? quietOnes[0] : allSpaces[0];
+  document.getElementById('heroSpaceName').textContent = `${hero.name.replace(/\[SPACE_\d+\]\s*/,'')} • ${hero.building.replace(/\[BUILDING_\w+\]\s*/,'')}`;
+  document.getElementById('heroSpaceStatus').textContent = `${NOISE_MAP[hero.status.noise].label} · ${hero.status.crowd_label}`;
+  window._heroSpaceId = hero.id;
+}
+
+function openDetailForFirst() { if (window._heroSpaceId) openDetailPanel(window._heroSpaceId); }
+function openReportModalForFirst() { if (allSpaces.length > 0) { const s = allSpaces.find(x=>x.is_open) || allSpaces[0]; openReportModal(s.id, s.name); } }
+
+// =========================================================================
+// Filters
+// =========================================================================
+function setActivityFilter(type, btn) {
+  currentActivity = type;
+  document.querySelectorAll('.activity-btn').forEach(b => { b.classList.remove('bg-indigo-electric','text-white','border-transparent'); b.classList.add('bg-surface-subtle','text-ink','border-border-subtle'); });
+  btn.classList.remove('bg-surface-subtle','text-ink','border-border-subtle');
+  btn.classList.add('bg-indigo-electric','text-white','border-transparent');
+  loadSpaces();
+}
+
+function toggleSecondaryFilter(key) {
+  if (key === 'quiet') { filterQuietActive = !filterQuietActive; updatePillState('filterQuietOnly', filterQuietActive); }
+  else if (key === 'open') { filterOpenActive = !filterOpenActive; updatePillState('filterOpenNow', filterOpenActive); }
+  loadSpaces();
+}
+
+function updatePillState(id, active) {
+  const el = document.getElementById(id);
+  if (active) { el.classList.add('bg-indigo-electric','text-white','border-indigo-electric'); el.classList.remove('bg-surface-subtle','text-ink','border-border-subtle'); }
+  else { el.classList.remove('bg-indigo-electric','text-white','border-indigo-electric'); el.classList.add('bg-surface-subtle','text-ink','border-border-subtle'); }
+}
+
+function handleSearch(val) { searchKeyword = val.toLowerCase().trim(); loadSpaces(); }
+function resetAllFilters() { currentActivity='all'; filterQuietActive=false; filterOpenActive=false; searchKeyword=''; document.getElementById('searchInput').value=''; updatePillState('filterQuietOnly',false); updatePillState('filterOpenNow',false); document.querySelectorAll('.activity-btn').forEach((b,i) => { if(i===0){b.classList.add('bg-indigo-electric','text-white');b.classList.remove('bg-surface-subtle','text-ink');} else{b.classList.remove('bg-indigo-electric','text-white');b.classList.add('bg-surface-subtle','text-ink');} }); loadSpaces(); }
+
+// =========================================================================
+// Detail Panel (API-driven)
+// =========================================================================
+async function openDetailPanel(spaceId) {
+  currentDetailSpaceId = spaceId;
+  try {
+    const res = await fetch(`/api/spaces/${spaceId}`);
+    const data = await res.json();
+    const s = data.space;
+    const nm = NOISE_MAP[s.status.noise] || NOISE_MAP[1];
+
+    document.getElementById('panelStatusWord').textContent = nm.label;
+    document.getElementById('panelStatusWord').style.color = nm.color;
+    document.getElementById('panelSpaceName').textContent = s.name;
+    document.getElementById('panelBuildingName').textContent = s.building;
+    document.getElementById('panelFreshnessText').textContent = s.status.confidence_label + (s.status.freshest_report_age_min != null ? ` · Updated ${s.status.freshest_report_age_min}m ago` : '');
+
+    // Attributes
+    const attrList = document.getElementById('panelAttributesList');
+    let attrHTML = '';
+    for (const [k, v] of Object.entries(s.attributes || {})) {
+      attrHTML += `<div class="flex items-start justify-between py-2 border-b border-border-subtle/60 text-sm"><span class="font-bold text-ink capitalize">${k.replace(/_/g,' ')}</span><span class="font-medium text-ink-muted text-right max-w-[60%]">${v}</span></div>`;
+    }
+    attrHTML += `<div class="flex items-start justify-between py-2 border-b border-border-subtle/60 text-sm"><span class="font-bold text-ink">Hours</span><span class="font-medium text-ink-muted text-right">${s.is_open ? 'Open · '+s.next_change : 'Closed · '+s.next_change}</span></div>`;
+    attrHTML += `<div class="flex items-start justify-between py-2 text-sm"><span class="font-bold text-ink">Crowd</span><span class="font-medium text-indigo-electric text-right">${s.status.crowd_label} (${s.status.noise_label})</span></div>`;
+    attrList.innerHTML = attrHTML;
+
+    // Hourly chart
+    const chartEl = document.getElementById('panelHourlyChart');
+    const hp = data.hourly_pattern || {};
+    const currentHour = new Date().getHours();
+    chartEl.innerHTML = Array.from({length:24}, (_,h) => {
+      const p = hp[String(h)] || {};
+      const avg = p.avg_noise || 0;
+      const pct = avg ? Math.round((avg / 3) * 100) : 10;
+      const col = avg <= 1.5 ? '#15803D' : avg <= 2.5 ? '#D97706' : '#E11D48';
+      const isCurrent = h === currentHour;
+      return `<div class="flex-1 flex flex-col items-center justify-end h-full gap-1" title="${h}:00 IST — avg noise ${avg ? avg.toFixed(1) : 'N/A'} (${p.sample_count||0} samples)">
+        <div class="w-full rounded-t" style="height:${pct}%; background:${avg ? col : '#E9E6F2'}; ${isCurrent ? 'box-shadow: 0 0 6px #4C32FF; outline: 2px solid #4C32FF;' : ''}"></div>
+        <span class="text-[8px] ${isCurrent ? 'font-black text-indigo-electric' : 'text-ink-light'}">${h}</span>
+      </div>`;
+    }).join('');
+
+    // Recent reports
+    const rrEl = document.getElementById('panelRecentReports');
+    if (data.recent_reports && data.recent_reports.length > 0) {
+      rrEl.innerHTML = data.recent_reports.map(r => `
+        <div class="flex items-center justify-between p-2.5 rounded-lg bg-surface-subtle border border-border-subtle text-xs">
+          <div class="font-bold text-ink">${r.noise_label} · ${r.crowd_label} ${r.is_outlier ? '<span class="text-red-500">(outlier)</span>' : ''}</div>
+          <div class="text-ink-muted">${r.minutes_ago}m ago · w=${r.weight}</div>
+        </div>
+      `).join('');
+    } else {
+      rrEl.innerHTML = '<p class="text-xs text-ink-muted">No live reports. Relying on hour baseline.</p>';
+    }
+
+    // Report button
+    document.getElementById('panelReportBtn').disabled = !s.is_open;
+    if (!s.is_open) document.getElementById('panelReportBtn').textContent = 'Closed — cannot report';
+
+    // Show panel
+    document.getElementById('detailPanelOverlay').classList.remove('pointer-events-none','opacity-0');
+    document.getElementById('detailPanel').classList.remove('translate-x-full');
+  } catch (e) { console.error(e); }
+}
+
+function closeDetailPanel() {
+  document.getElementById('detailPanelOverlay').classList.add('opacity-0','pointer-events-none');
+  document.getElementById('detailPanel').classList.add('translate-x-full');
+}
+
+function openReportModalFromPanel() { closeDetailPanel(); const s = allSpaces.find(x => x.id === currentDetailSpaceId); if (s) openReportModal(s.id, s.name); }
+
+// =========================================================================
+// Report Modal (API POST)
+// =========================================================================
+function openReportModal(spaceId, spaceName) {
+  currentReportSpaceId = spaceId;
+  document.getElementById('reportModalSpaceName').textContent = spaceName || 'this space';
+  document.getElementById('reportFormBody').classList.remove('hidden');
+  document.getElementById('reportSuccessBody').classList.add('hidden');
+  document.getElementById('reportRateLimitMsg').classList.add('hidden');
+  document.getElementById('submitReportBtn').disabled = false;
+  document.getElementById('reportModalOverlay').classList.remove('pointer-events-none','opacity-0');
+}
+
+function closeReportModal() { document.getElementById('reportModalOverlay').classList.add('opacity-0','pointer-events-none'); }
+
+function selectReportNoise(val, btn) {
+  selectedNoise = val;
+  document.querySelectorAll('.report-noise-btn').forEach(b => { b.classList.remove('border-emerald-300','border-amber-300','border-red-300','ring-2'); b.classList.add('border-border-subtle'); });
+  btn.classList.add('ring-2');
+  if (val===1) btn.classList.add('border-emerald-300');
+  if (val===2) btn.classList.add('border-amber-300');
+  if (val===3) btn.classList.add('border-red-300');
+}
+
+function selectReportCrowd(val, btn) {
+  selectedCrowd = val;
+  document.querySelectorAll('.report-crowd-btn').forEach(b => { b.classList.remove('bg-indigo-tint','text-indigo-electric','border-indigo-electric'); b.classList.add('bg-surface-subtle','text-ink','border-border-subtle'); });
+  btn.classList.remove('bg-surface-subtle','text-ink','border-border-subtle');
+  btn.classList.add('bg-indigo-tint','text-indigo-electric','border-indigo-electric');
+}
+
+async function submitReport() {
+  if (!currentReportSpaceId) return;
+  const btn = document.getElementById('submitReportBtn');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+
+  try {
+    const res = await fetch(`/api/spaces/${currentReportSpaceId}/report`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ noise: selectedNoise, crowd: selectedCrowd, device_token: getDeviceToken() })
+    });
+    const data = await res.json();
+
+    if (res.status === 201) {
+      document.getElementById('reportFormBody').classList.add('hidden');
+      document.getElementById('reportSuccessBody').classList.remove('hidden');
+      document.getElementById('reportSuccessMsg').textContent = data.thanks || 'Report received!';
+      loadSpaces();
+    } else if (res.status === 429) {
+      const msg = document.getElementById('reportRateLimitMsg');
+      msg.textContent = data.error || 'Rate limited. Try again later.';
+      msg.classList.remove('hidden');
+      btn.disabled = false; btn.textContent = 'submit report now';
+    } else {
+      const msg = document.getElementById('reportRateLimitMsg');
+      msg.textContent = data.error || 'Could not submit report.';
+      msg.classList.remove('hidden');
+      btn.disabled = false; btn.textContent = 'submit report now';
+    }
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'submit report now';
+    console.error(e);
+  }
+}
+
+// =========================================================================
+// Mini-Game: "Quiet or Loud?" (frontend-only, uses space baselines)
+// =========================================================================
+const GAME_TIMES = [
+  { label: 'Monday • 8:30 AM', hour: 8 },
+  { label: 'Tuesday • 12:45 PM', hour: 12 },
+  { label: 'Wednesday • 2:15 PM', hour: 14 },
+  { label: 'Thursday • 6:00 PM', hour: 18 },
+  { label: 'Friday • 10:00 AM', hour: 10 },
+  { label: 'Saturday • 3:00 PM', hour: 15 },
+  { label: 'Sunday • 9:00 AM', hour: 9 }
+];
+
+let gameQuestions = [];
+let currentQuestionIdx = 0;
+let gameStreak = 0;
+let gameBest = parseInt(localStorage.getItem('qcf_game_best') || '0', 10);
+
+function buildGameQuestions() {
+  gameQuestions = [];
+  const usableSpaces = allSpaces.filter(s => s.attributes);
+  if (usableSpaces.length === 0) return;
+
+  for (let i = 0; i < 10; i++) {
+    const space = usableSpaces[Math.floor(Math.random() * usableSpaces.length)];
+    const time = GAME_TIMES[Math.floor(Math.random() * GAME_TIMES.length)];
+    const typNoise = (space.attributes.typical_noise || 'quiet').toLowerCase();
+    const answer = (typNoise === 'quiet' || typNoise === '1') ? 'quiet' : 'loud';
+    const notes = { quiet: 'This space is typically calm and suited for focus at this hour.', loud: 'Expect conversations and activity here at peak times.' };
+    gameQuestions.push({ space: space.name, building: space.building, time: time.label, answer, note: notes[answer] });
+  }
+}
+
+function openMiniGame() {
+  if (gameQuestions.length === 0) buildGameQuestions();
+  if (gameQuestions.length === 0) { alert('No spaces loaded yet.'); return; }
+  document.getElementById('gameBestScore').textContent = gameBest;
+  document.getElementById('gameStreakCount').textContent = gameStreak;
+  currentQuestionIdx = 0;
+  loadNextQuestion();
+  document.getElementById('miniGameOverlay').classList.remove('pointer-events-none','opacity-0');
+}
+
+function closeMiniGame() { document.getElementById('miniGameOverlay').classList.add('opacity-0','pointer-events-none'); }
+
+function loadNextQuestion() {
+  if (gameQuestions.length === 0) return;
+  const q = gameQuestions[currentQuestionIdx % gameQuestions.length];
+  document.getElementById('gameQuestionTime').textContent = q.time;
+  document.getElementById('gameQuestionSpace').textContent = q.space.replace(/\[SPACE_\d+\]\s*/,'');
+  document.getElementById('gameQuestionBuilding').textContent = q.building.replace(/\[BUILDING_\w+\]\s*/,'').replace(/\[CAMPUS_QUAD_\w+\]\s*/,'');
+  document.getElementById('gameFeedbackBanner').classList.add('hidden');
+  document.getElementById('gameChoiceButtons').classList.remove('pointer-events-none','opacity-50');
+}
+
+function guessGame(choice) {
+  const q = gameQuestions[currentQuestionIdx % gameQuestions.length];
+  const banner = document.getElementById('gameFeedbackBanner');
+  document.getElementById('gameChoiceButtons').classList.add('pointer-events-none','opacity-50');
+
+  const correct = choice === q.answer;
+  if (correct) {
+    gameStreak++;
+    if (gameStreak > gameBest) { gameBest = gameStreak; try { localStorage.setItem('qcf_game_best', String(gameBest)); } catch(e){} }
+    banner.className = 'p-4 rounded-xl text-center text-sm font-bold mb-4 bg-emerald-50 text-status-quiet border border-emerald-200 block';
+    banner.innerHTML = `Correct! Typically <strong>${q.answer.toUpperCase()}</strong>. <div class="text-xs font-normal text-ink-muted mt-0.5">${q.note}</div>`;
+  } else {
+    gameStreak = 0;
+    banner.className = 'p-4 rounded-xl text-center text-sm font-bold mb-4 bg-red-50 text-status-loud border border-red-200 block';
+    banner.innerHTML = `Not quite! It's actually <strong>${q.answer.toUpperCase()}</strong>. <div class="text-xs font-normal text-ink-muted mt-0.5">${q.note}</div>`;
+  }
+  document.getElementById('gameStreakCount').textContent = gameStreak;
+  document.getElementById('gameBestScore').textContent = gameBest;
+
+  setTimeout(() => { currentQuestionIdx++; loadNextQuestion(); }, 1600);
+}
+
+// =========================================================================
+// Demo Controls (Hackathon Presentation)
+// =========================================================================
+function populateDemoDropdown() {
+  const sel = document.getElementById('demoSpaceSelect');
+  if (!sel) return;
+  sel.innerHTML = allSpaces.map(s => `<option value="${s.id}">${s.name} (${s.status.noise_label})</option>`).join('');
+}
+
+async function fireSimReport() {
+  const spaceId = parseInt(document.getElementById('demoSpaceSelect').value);
+  const age = parseFloat(document.getElementById('demoDecayAge').value);
+  const noise = parseInt(document.getElementById('demoSimNoise').value);
+  try {
+    await fetch('/api/demo/simulate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({space_id: spaceId, minutes_ago: age, noise, crowd: 2}) });
+    loadSpaces();
+  } catch(e) { console.error(e); }
+}
+
+async function resetDemoDB() {
+  if (!confirm('Reset DB to clean seed data?')) return;
+  try { await fetch('/api/demo/reset', { method: 'POST' }); loadSpaces(); } catch(e) { console.error(e); }
+}
+
+// =========================================================================
+// Nav Scroll Effect
+// =========================================================================
+window.addEventListener('scroll', () => {
+  const nav = document.getElementById('topNav');
+  if (window.scrollY > 40) { nav.classList.add('bg-white/95','shadow-sm','border-b','border-border-subtle/80'); nav.classList.remove('bg-transparent','py-6'); nav.classList.add('py-4'); }
+  else { nav.classList.remove('bg-white/95','shadow-sm','border-b','border-border-subtle/80','py-4'); nav.classList.add('bg-transparent','py-6'); }
+});
+
+// =========================================================================
+// Hero Custom Cursor
+// =========================================================================
+const sceneWrapper = document.getElementById('heroSceneWrapper');
+const customCursor = document.getElementById('sceneCursor');
+const cursorLabel = document.getElementById('cursorLabel');
+if (sceneWrapper && customCursor) {
+  sceneWrapper.addEventListener('mousemove', e => { const r = sceneWrapper.getBoundingClientRect(); customCursor.style.left = `${e.clientX-r.left}px`; customCursor.style.top = `${e.clientY-r.top}px`; customCursor.classList.remove('opacity-0'); });
+  sceneWrapper.addEventListener('mouseenter', () => { customCursor.classList.remove('opacity-0'); customCursor.style.width='64px'; customCursor.style.height='64px'; cursorLabel.classList.remove('opacity-0'); });
+  sceneWrapper.addEventListener('mouseleave', () => { customCursor.classList.add('opacity-0'); customCursor.style.width='40px'; customCursor.style.height='40px'; cursorLabel.classList.add('opacity-0'); });
+}
+
+// =========================================================================
+// Keyboard Accessibility for Modals
+// =========================================================================
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeDetailPanel(); closeReportModal(); closeMiniGame(); }
+});
+
+// =========================================================================
+// Init
+// =========================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  loadSpaces();
+});
+</script>
+</body></html>
